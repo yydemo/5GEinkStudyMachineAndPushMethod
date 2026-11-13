@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 venv/
 *.pyc
+
+# 真实学生数据不入库（仓库是公开的）
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
