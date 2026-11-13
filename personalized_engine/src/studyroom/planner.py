@@ -1,0 +1,235 @@
+"""按薄弱科目为学生安排自习场次与座位。"""
+
+from __future__ import annotations
+
+import csv
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, Optional
+
+from .. import KnowledgeMastery, Student
+
+WEEKDAY_NAMES = {1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日"}
+
+DEFAULT_SLOTS = [
+    {"id": "WD_PM", "label": "工作日傍晚", "weekdays": [1, 2, 3, 4, 5], "start": "16:30", "end": "18:30", "priority": 2},
+    {"id": "WD_EV", "label": "工作日晚间", "weekdays": [1, 2, 3, 4, 5], "start": "19:00", "end": "21:00", "priority": 1},
+    {"id": "WE_AM", "label": "周末上午", "weekdays": [6, 7], "start": "09:00", "end": "11:30", "priority": 4},
+    {"id": "WE_PM", "label": "周末下午", "weekdays": [6, 7], "start": "14:00", "end": "16:30", "priority": 3},
+    {"id": "WE_EV", "label": "周末晚间", "weekdays": [6, 7], "start": "19:00", "end": "21:00", "priority": 5},
+]
+
+DEFAULT_ZONES = [
+    {"name": "理科辅导区", "subjects": ["物理", "化学", "生物"], "seat_ids": [f"R{i:02d}" for i in range(1, 9)]},
+    {"name": "文科辅导区", "subjects": ["历史", "地理", "政治"], "seat_ids": [f"W{i:02d}" for i in range(1, 9)]},
+]
+
+
+@dataclass
+class SeatAssignment:
+    student_id: str
+    weekday: int
+    slot_id: str
+    slot_label: str
+    start: str
+    end: str
+    seat_id: str
+    zone: str
+    subject_focus: str
+    knowledge_point: str = ""
+
+
+def primary_weakness(
+    student: Student, mastery_rows: Optional[list[KnowledgeMastery]]
+) -> tuple[str, str]:
+    rows = list(mastery_rows or [])
+    if rows:
+        top = rows[0]
+        return top.subject, top.knowledge_point
+    if student.subjects:
+        return student.subjects[0], ""
+    return "", ""
+
+
+def _slots_from_config(config: dict) -> list[dict]:
+    slots = (config or {}).get("studyroom", {}).get("slots") or DEFAULT_SLOTS
+    normalized = []
+    for item in slots:
+        normalized.append(
+            {
+                "id": item["id"],
+                "label": item.get("label") or item.get("name") or item["id"],
+                "weekdays": list(item.get("weekdays") or []),
+                "start": item.get("start", ""),
+                "end": item.get("end", ""),
+                "priority": int(item.get("priority") or 99),
+            }
+        )
+    return normalized
+
+
+def _zones_from_config(config: dict) -> list[dict]:
+    zones = (config or {}).get("studyroom", {}).get("zones") or DEFAULT_ZONES
+    result = []
+    for zone in zones:
+        result.append(
+            {
+                "name": zone["name"],
+                "subjects": list(zone.get("subjects") or []),
+                "seat_ids": list(zone.get("seat_ids") or []),
+            }
+        )
+    return result
+
+
+def _zone_for_subject(subject: str, zones: list[dict]) -> dict:
+    for zone in zones:
+        if subject and subject in zone["subjects"]:
+            return zone
+    if zones:
+        return zones[0]
+    return {"name": "未分区", "subjects": [], "seat_ids": [f"S{i:02d}" for i in range(1, 17)]}
+
+
+def _occurrences(slots: list[dict]) -> list[tuple[int, dict]]:
+    items: list[tuple[int, dict]] = []
+    for slot in slots:
+        for weekday in slot["weekdays"]:
+            items.append((int(weekday), slot))
+    items.sort(key=lambda pair: (pair[1]["priority"], pair[0], pair[1]["id"]))
+    return items
+
+
+def plan_sessions(
+    students: Iterable[Student],
+    mastery: Optional[dict[str, list[KnowledgeMastery]]] = None,
+    config: Optional[dict] = None,
+) -> list[SeatAssignment]:
+    """按薄弱科目把学生安排到场次和座位，同一场次座位不冲突。"""
+    config = config or {}
+    mastery = mastery or {}
+    slots = _slots_from_config(config)
+    zones = _zones_from_config(config)
+    sessions_per_week = int((config.get("studyroom") or {}).get("sessions_per_week") or 4)
+    if sessions_per_week <= 0:
+        raise ValueError("sessions_per_week 必须为正整数")
+
+    occurrences = _occurrences(slots)
+    if not occurrences:
+        raise ValueError("未配置可用场次")
+
+    # 按薄弱科目聚集，便于同一场次由一位伴学师盯同一科目。
+    prepared: list[tuple[Student, str, str]] = []
+    for student in students:
+        subject, point = primary_weakness(student, mastery.get(student.student_id))
+        prepared.append((student, subject, point))
+    prepared.sort(key=lambda item: (item[1] or "未分科", item[0].student_id))
+
+    occupied: dict[tuple[int, str], set[str]] = {}
+    assignments: list[SeatAssignment] = []
+
+    for student, subject, point in prepared:
+        zone = _zone_for_subject(subject, zones)
+        assigned = 0
+        for weekday, slot in occurrences:
+            if assigned >= sessions_per_week:
+                break
+            key = (weekday, slot["id"])
+            taken = occupied.setdefault(key, set())
+            seat = next((seat_id for seat_id in zone["seat_ids"] if seat_id not in taken), None)
+            if seat is None:
+                continue
+            taken.add(seat)
+            assignments.append(
+                SeatAssignment(
+                    student_id=student.student_id,
+                    weekday=weekday,
+                    slot_id=slot["id"],
+                    slot_label=slot["label"],
+                    start=slot["start"],
+                    end=slot["end"],
+                    seat_id=seat,
+                    zone=zone["name"],
+                    subject_focus=subject,
+                    knowledge_point=point,
+                )
+            )
+            assigned += 1
+        if assigned < sessions_per_week:
+            raise ValueError(
+                f"无法为 {student.student_id} 排满 {sessions_per_week} 场："
+                "座位或场次不足，请增加座位数或减少每人场次"
+            )
+
+    assignments.sort(key=lambda item: (item.weekday, item.start, item.slot_id, item.seat_id))
+    return assignments
+
+
+def render_plan_markdown(assignments: list[SeatAssignment]) -> str:
+    lines = [
+        "# 座位与场次安排",
+        "",
+        "按学生薄弱科目优先安排到对应辅导区，同一场次内座位不重复。",
+        "本表只使用内部学号与学习字段，不含姓名等私人信息。",
+        "",
+        "| 星期 | 场次 | 时间 | 学号 | 座位 | 分区 | 重点科目 | 薄弱知识点 |",
+        "|------|------|------|------|------|------|----------|------------|",
+    ]
+    for item in assignments:
+        point = item.knowledge_point or "—"
+        subject = item.subject_focus or "—"
+        time_range = f"{item.start}–{item.end}" if item.start or item.end else "—"
+        lines.append(
+            f"| {WEEKDAY_NAMES.get(item.weekday, item.weekday)} | {item.slot_label} "
+            f"| {time_range} | {item.student_id} | {item.seat_id} | {item.zone} "
+            f"| {subject} | {point} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_plan(
+    assignments: list[SeatAssignment],
+    output_dir: str | Path,
+) -> dict:
+    output_dir = Path(output_dir)
+    target = output_dir / "studyroom"
+    target.mkdir(parents=True, exist_ok=True)
+    md_path = target / "座位与场次安排.md"
+    csv_path = target / "座位与场次安排.csv"
+    md_path.write_text(render_plan_markdown(assignments), encoding="utf-8")
+    with csv_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "weekday",
+                "weekday_name",
+                "slot_id",
+                "slot_label",
+                "start",
+                "end",
+                "student_id",
+                "seat_id",
+                "zone",
+                "subject_focus",
+                "knowledge_point",
+            ],
+        )
+        writer.writeheader()
+        for item in assignments:
+            writer.writerow(
+                {
+                    "weekday": item.weekday,
+                    "weekday_name": WEEKDAY_NAMES.get(item.weekday, ""),
+                    "slot_id": item.slot_id,
+                    "slot_label": item.slot_label,
+                    "start": item.start,
+                    "end": item.end,
+                    "student_id": item.student_id,
+                    "seat_id": item.seat_id,
+                    "zone": item.zone,
+                    "subject_focus": item.subject_focus,
+                    "knowledge_point": item.knowledge_point,
+                }
+            )
+    return {"markdown": md_path, "csv": csv_path, "count": len(assignments)}

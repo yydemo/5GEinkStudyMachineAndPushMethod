@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # 选科组合 → 科目列表。若学生记录已提供 subjects 字段，则以该字段为准。
 TRACK_SUBJECTS = {

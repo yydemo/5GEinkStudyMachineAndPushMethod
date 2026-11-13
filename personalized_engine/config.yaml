@@ -38,3 +38,81 @@ generator:
   # rule：本版本默认规则引擎
   # llm：预留接口，当前未实现，也不会调用任何外部 API
   backend: rule
+
+# ---------------------------------------------------------------------------
+# AI 自习室运营与单店测算
+# finance.scenarios 中的数字全部是测算假设，不是已核实的经营数据。
+# 修改后运行 `eink-studyroom finance` 即可重算，请勿把结果当作承诺收益。
+# ---------------------------------------------------------------------------
+studyroom:
+  sessions_per_week: 4
+  week_start: "2026-11-02"   # 示例数据对应的统计周（周一）
+  seats: 16
+  zones:
+    - name: 理科辅导区
+      subjects: [物理, 化学, 生物]
+      seat_ids: [R01, R02, R03, R04, R05, R06, R07, R08]
+    - name: 文科辅导区
+      subjects: [历史, 地理, 政治]
+      seat_ids: [W01, W02, W03, W04, W05, W06, W07, W08]
+  slots:
+    - id: WD_PM
+      label: 工作日傍晚
+      weekdays: [1, 2, 3, 4, 5]
+      start: "16:30"
+      end: "18:30"
+      priority: 2
+    - id: WD_EV
+      label: 工作日晚间
+      weekdays: [1, 2, 3, 4, 5]
+      start: "19:00"
+      end: "21:00"
+      priority: 1
+    - id: WE_AM
+      label: 周末上午
+      weekdays: [6, 7]
+      start: "09:00"
+      end: "11:30"
+      priority: 4
+    - id: WE_PM
+      label: 周末下午
+      weekdays: [6, 7]
+      start: "14:00"
+      end: "16:30"
+      priority: 3
+    - id: WE_EV
+      label: 周末晚间
+      weekdays: [6, 7]
+      start: "19:00"
+      end: "21:00"
+      priority: 5
+  finance:
+    # 单位：座位数（个），利用率/续费率（0–1），其余为元 / 月（启动成本为一次性投入）
+    scenarios:
+      conservative:
+        seats: 40
+        utilization: 0.55
+        monthly_fee: 1200
+        renewal_rate: 0.72
+        rent: 16000
+        labor: 26000
+        equipment_amortization: 4000
+        startup_cost: 350000
+      neutral:
+        seats: 50
+        utilization: 0.70
+        monthly_fee: 1800
+        renewal_rate: 0.80
+        rent: 12000
+        labor: 22000
+        equipment_amortization: 3500
+        startup_cost: 250000
+      optimistic:
+        seats: 60
+        utilization: 0.85
+        monthly_fee: 2500
+        renewal_rate: 0.85
+        rent: 10000
+        labor: 20000
+        equipment_amortization: 3000
+        startup_cost: 180000

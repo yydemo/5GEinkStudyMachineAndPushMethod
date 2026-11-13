@@ -6,11 +6,14 @@
 - 两种选科：物化生、史地生
 - 若干场示例考试（物理 / 化学 / 生物 / 历史 / 地理，每科 1–3 场）
 - 含试卷原题与补充练习的小规模题库
+- `checkins.csv`：2026-11-02 至 2026-11-08 的自习室签到示例（含少量缺勤）
 
 直接运行：
 
 ```bash
 python -m src.main --data data/sample --out output
+# 或安装后
+eink-studyroom all --data data/sample --out output
 ```
 
 接入真实数据时，请另放在 `data/raw/`，不要覆盖本目录，也不要写入姓名、联系方式等与学习无关的私人字段。
