@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# 个性化引擎运行产出（含生成的学生材料，不入库）
+personalized_engine/output/
+output/

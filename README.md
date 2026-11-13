@@ -37,6 +37,7 @@
 ## 目录规划（逐步完善）
 
 - [`docs/personalized_eink_learning.md`](docs/personalized_eink_learning.md)：从纸质个性化材料到墨水屏读书器的改进方案
+- [`personalized_engine/`](personalized_engine/)：个性化试卷与资料引擎第一版框架（规则引擎，含示例数据，可生成每生材料与教师审核摘要）
 - `docs/`：详细方案、算法思路、硬件选型、教学组织流程
 - `simulation/`：推送算法仿真与学情反馈模拟
 - `hardware/`：墨水屏设备接口与低功耗同步协议说明

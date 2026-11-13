@@ -1,0 +1,40 @@
+# 个性化试卷与资料引擎配置（规则引擎第一版）
+
+privacy:
+  # 学生表只保留这些学习相关字段，其余列一律丢弃
+  allowed_student_fields:
+    - student_id
+    - grade
+    - class_name
+    - subject_track
+    - subjects
+
+mastery:
+  recent_exam_count: 3
+  # 最近一次考试到更早，权重依次降低
+  exam_weights: [0.5, 0.3, 0.2]
+  # 错题在掌握度分母中的额外权重，用于更明显地暴露薄弱点
+  wrong_answer_weight: 1.8
+
+weak_points:
+  mastery_weight: 0.5      # 掌握度越低，分越高
+  frequency_weight: 0.3    # 出现次数越高，分越高
+  decline_weight: 0.2      # 近期下降趋势加分
+  max_weak_points: 5
+
+layers:
+  basic_max: 0.5           # 掌握度低于此值为「基础」
+  advanced_min: 0.75       # 掌握度达到此值为「拓展」
+  # 介于两者之间为「中等」
+
+output:
+  max_questions: 12        # 每人练习题上限（适配墨水屏）
+  max_pages: 6             # 预估页数上限
+  chars_per_page: 800
+  review_slot_ratio: 0.5   # 错题重练约占总题量的比例
+  teacher_summary_filename: 教师审核摘要.md
+
+generator:
+  # rule：本版本默认规则引擎
+  # llm：预留接口，当前未实现，也不会调用任何外部 API
+  backend: rule
