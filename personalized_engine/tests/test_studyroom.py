@@ -1,4 +1,7 @@
-"""AI 自习室模块：财务测算、排座、签到与学情周报。"""
+"""AI 自习室模块：财务测算、排座、签到与学情周报。
+
+Tests for the AI study-room module: finance estimate, seating, check-ins and weekly reports.
+"""
 
 from __future__ import annotations
 
@@ -135,7 +138,7 @@ def test_sample_checkins_are_synthetic_and_complete():
     assert len(records) == 32
     ids = {item.student_id for item in records}
     assert ids == {f"S00{i}" for i in range(1, 9)}
-    # 同一场次座位不冲突
+    # 同一场次座位不冲突 / No seat conflicts within a session
     seats = [(item.date, item.slot_id, item.seat_id) for item in records]
     assert len(seats) == len(set(seats))
     absences = [item for item in records if not item.attended]
@@ -242,7 +245,7 @@ def test_write_weekly_reports_and_finance_via_cli(tmp_path, cleaned, config):
     assert "19,008 元" in finance or "19008" in finance
     assert (root / "studyroom" / "座位与场次安排.md").exists()
     assert (root / "studyroom" / "weekly" / "S001_学情周报.md").exists()
-    # week-start 2026-11-04 应归一到周一 2026-11-02
+    # week-start 2026-11-04 应归一到周一 2026-11-02 / should normalize to Monday 2026-11-02
     report = (root / "studyroom" / "weekly" / "S001_学情周报.md").read_text(encoding="utf-8")
     assert "2026-11-02 至 2026-11-08" in report
 

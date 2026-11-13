@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "eink-studyroom"
 version = "0.2.0"
-description = "墨水屏个性化学习材料引擎与 AI 自习室运营工具"
+description = "墨水屏个性化学习材料引擎与 AI 自习室运营工具 / E-Ink personalized learning materials engine and AI study-room operations tool"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}

@@ -1,4 +1,7 @@
-"""知识点掌握度分析与薄弱点排序。"""
+"""知识点掌握度分析与薄弱点排序。
+
+Knowledge-point mastery analysis and weak-point ranking.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +12,18 @@ from . import Answer, Exam, KnowledgeMastery, StudentProfile
 
 
 def _config_section(config: Optional[dict], name: str) -> dict:
+    """取配置中的一个小节。 / Get one section of the config."""
     return (config or {}).get(name) or {}
 
 
 def exam_chronology(exams: list[Exam], answers: list[Answer] | None = None) -> dict[str, str]:
+    """考试编号 → 日期。 / Exam ID → date."""
     dates = {exam.exam_id: exam.exam_date for exam in exams if exam.exam_date}
     return dates
 
 
 def _correctness(answer: Answer) -> float:
+    """单题正确率（支持部分分）。 / Per-question correctness (supports partial credit)."""
     if answer.full_score and answer.full_score > 0:
         ratio = answer.score / answer.full_score
         return max(0.0, min(1.0, ratio))
@@ -25,6 +31,7 @@ def _correctness(answer: Answer) -> float:
 
 
 def _trend(series: list[float], gap: float = 0.08) -> str:
+    """比较前后两半的均值判断趋势。 / Judge the trend by comparing the means of the earlier and later halves."""
     if len(series) < 2:
         return "数据不足"
     mid = max(1, len(series) // 2)
@@ -38,6 +45,7 @@ def _trend(series: list[float], gap: float = 0.08) -> str:
 
 
 def _priority(weak_score: float) -> str:
+    """薄弱分 → 推荐优先级（高/中/低）。 / Weak score → recommended priority (high/medium/low)."""
     if weak_score >= 0.6:
         return "高"
     if weak_score >= 0.35:
@@ -54,11 +62,17 @@ def analyze_knowledge_mastery(
 ) -> dict[str, list[KnowledgeMastery]]:
     """计算每名学生各知识点掌握度，并给出薄弱点排序。
 
-    规则：
+    Compute each student's mastery of each knowledge point and rank weak points.
+
+    规则 / Rules:
     - 只分析选科组合内的科目；
+      Only subjects within the subject combination are analysed;
     - 取该知识点最近 3 次相关考试，按配置加权；
+      The 3 most recent exams for the knowledge point are used, weighted per config;
     - 错题在分母中权重更高，从而更明显拉低掌握度；
+      Wrong answers weigh more in the denominator, pulling mastery down more visibly;
     - 薄弱分 = 低掌握度 + 高出现频次 + 下降趋势。
+      Weak score = low mastery + high frequency + declining trend.
     """
     if dataset:
         answers = answers if answers is not None else dataset.get("answers")
@@ -92,7 +106,7 @@ def analyze_knowledge_mastery(
             if (not allowed) or (not a.subject) or (a.subject in allowed)
         ]
 
-        # (subject, kp) -> exam_id -> [answers]
+        # (科目, 知识点) -> 考试编号 -> [作答] / (subject, kp) -> exam_id -> [answers]
         grouped: dict[tuple[str, str], dict[str, list[Answer]]] = defaultdict(
             lambda: defaultdict(list)
         )
@@ -110,11 +124,11 @@ def analyze_knowledge_mastery(
                 key=lambda eid: (exam_dates.get(eid, ""), eid),
             )
             recent_ids = exam_ids[-recent_n:]
-            # 用于趋势的按时间正序正确率
+            # 用于趋势的按时间正序正确率 / Per-exam correctness used for the trend
             per_exam_correctness = []
             numerator = 0.0
             denominator = 0.0
-            # 最近一次对应 weights[0]
+            # 最近一次对应 weights[0] / The most recent exam uses weights[0]
             for offset, exam_id in enumerate(reversed(recent_ids)):
                 weight = weights[offset] if offset < len(weights) else weights[-1]
                 exam_values = []
@@ -131,6 +145,7 @@ def analyze_knowledge_mastery(
             mastery = (numerator / denominator) if denominator else 0.0
             mastery = max(0.0, min(1.0, mastery))
             # per_exam_correctness 目前是从新到旧，趋势需要从旧到新
+            # per_exam_correctness is newest-first; the trend needs oldest-first
             trend = _trend(list(reversed(per_exam_correctness)))
             frequency = sum(len(v) for v in by_exam.values())
             frequencies.append(frequency)
@@ -159,8 +174,9 @@ def analyze_knowledge_mastery(
             )
         rows.sort(key=lambda row: (-row.weak_score, row.mastery_score, -row.frequency))
         # 截断仅用于“优先薄弱点”展示，完整列表仍返回，调用方可自行切片
+        # Truncation is only for the "priority weak points" display; the full list is returned for callers to slice
         results[student.student_id] = rows
-        profile_max = max_weak  # stored for generator via config; keep full list
+        profile_max = max_weak  # 由生成器通过配置使用，这里保留完整列表 / used by the generator via config; full list kept here
         _ = profile_max
     return results
 
@@ -168,4 +184,5 @@ def analyze_knowledge_mastery(
 def top_weak_points(
     rows: list[KnowledgeMastery], limit: int = 5
 ) -> list[KnowledgeMastery]:
+    """取前 N 个薄弱点。 / Take the top N weak points."""
     return list(rows)[:limit]

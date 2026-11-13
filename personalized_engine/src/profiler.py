@@ -1,4 +1,7 @@
-"""按学生构建学情画像：成绩轨迹、错题列表、近期考试。"""
+"""按学生构建学情画像：成绩轨迹、错题列表、近期考试。
+
+Build per-student learning profiles: score history, wrong answers and recent exams.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +11,7 @@ from . import Answer, Exam, ScoreRecord, Student, StudentProfile
 
 
 def _exam_date(exam_id: str, exams: dict[str, Exam], scores: list[ScoreRecord]) -> str:
+    """查找考试日期。 / Look up an exam date."""
     exam = exams.get(exam_id)
     if exam and exam.exam_date:
         return exam.exam_date
@@ -25,7 +29,10 @@ def build_student_profiles(
 ) -> list[StudentProfile]:
     """构建每名学生的学情画像。
 
+    Build a learning profile for each student.
+
     可通过位置参数 `(students, exam_records)` 调用，也可传入 answers / exams。
+    Can be called positionally as `(students, exam_records)`, or with answers / exams.
     """
     exam_records = exam_records or []
     answers = answers or []
@@ -82,7 +89,7 @@ def build_student_profiles(
             if record.exam_id not in seen:
                 exam_ids.append(record.exam_id)
                 seen.add(record.exam_id)
-        # recent first already from reversed chronological sort
+        # 按时间倒序遍历，所以最近的考试在前 / Iterating in reverse chronological order, so the most recent exam comes first
         profiles.append(
             StudentProfile(
                 student=student,

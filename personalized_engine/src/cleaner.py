@@ -1,4 +1,8 @@
-"""清洗与标准化：空白、选科、难度、对错标记，并补全关联字段。"""
+"""清洗与标准化：空白、选科、难度、对错标记，并补全关联字段。
+
+Cleaning and normalization: whitespace, subject combinations, difficulty and
+right/wrong markers, plus filling in related fields.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,8 @@ from . import TRACK_SUBJECTS, Answer, Exam, Question, ScoreRecord, Student
 from .data_loader import parse_bool, split_list
 
 
+# 难度别名 → 标准难度（基础 / 中等 / 拓展）。
+# Difficulty aliases → standard difficulty (basic / intermediate / advanced).
 DIFFICULTY_MAP = {
     "基础": "基础",
     "简单": "基础",
@@ -28,15 +34,18 @@ DIFFICULTY_MAP = {
 
 
 def normalize_difficulty(value: str, default: str = "中等") -> str:
+    """把难度别名归一。 / Normalize a difficulty alias."""
     text = (value or "").strip()
     return DIFFICULTY_MAP.get(text, default if not text else text)
 
 
 def subjects_from_track(track: str) -> list[str]:
+    """按选科组合推断科目列表。 / Infer the subject list from a subject combination."""
     return list(TRACK_SUBJECTS.get((track or "").strip(), []))
 
 
 def clean_students(students: list[Student]) -> list[Student]:
+    """去重、去空白，并补全科目。 / Deduplicate, strip whitespace and fill in subjects."""
     cleaned: list[Student] = []
     seen: set[str] = set()
     for student in students:
@@ -61,6 +70,7 @@ def clean_students(students: list[Student]) -> list[Student]:
 
 
 def clean_exams(exams: list[Exam]) -> list[Exam]:
+    """去重并按日期排序。 / Deduplicate and sort by date."""
     cleaned: list[Exam] = []
     seen: set[str] = set()
     for exam in exams:
@@ -84,6 +94,7 @@ def clean_exams(exams: list[Exam]) -> list[Exam]:
 def clean_scores(
     scores: list[ScoreRecord], exams: list[Exam]
 ) -> list[ScoreRecord]:
+    """去重成绩，并用考试表补全科目、日期、满分。 / Deduplicate scores and fill subject, date and full score from exams."""
     exam_map = {exam.exam_id: exam for exam in exams}
     cleaned: list[ScoreRecord] = []
     seen: set[tuple[str, str]] = set()
@@ -114,6 +125,7 @@ def clean_answers(
     exams: list[Exam],
     questions: list[Question],
 ) -> list[Answer]:
+    """去重作答，并补全知识点、科目与对错。 / Deduplicate answers and fill knowledge points, subject and correctness."""
     exam_map = {exam.exam_id: exam for exam in exams}
     question_map = {question.question_id: question for question in questions}
     cleaned: list[Answer] = []
@@ -137,7 +149,7 @@ def clean_answers(
         if not subject and question:
             subject = question.subject
         is_correct = parse_bool(answer.is_correct)
-        # 若未标对错，则按得分占比判断
+        # 若未标对错，则按得分占比判断 / If correctness is not marked, judge by score ratio
         full_score = float(answer.full_score or (question and 0) or 0)
         score = float(answer.score or 0)
         if answer.full_score in (None, "", 0) and not full_score:
@@ -161,6 +173,7 @@ def clean_answers(
 
 
 def clean_questions(questions: list[Question]) -> list[Question]:
+    """去重题目并归一难度。 / Deduplicate questions and normalize difficulty."""
     cleaned: list[Question] = []
     seen: set[str] = set()
     for question in questions:
@@ -185,7 +198,7 @@ def clean_questions(questions: list[Question]) -> list[Question]:
 def derive_scores_from_answers(
     answers: list[Answer], exams: list[Exam]
 ) -> list[ScoreRecord]:
-    """若未提供成绩表，按答题得分汇总。"""
+    """若未提供成绩表，按答题得分汇总。 / If no score table is given, aggregate from answer scores."""
     exam_map = {exam.exam_id: exam for exam in exams}
     buckets: dict[tuple[str, str], list[Answer]] = defaultdict(list)
     for answer in answers:
@@ -212,7 +225,7 @@ def derive_scores_from_answers(
 def derive_exams_from_records(
     answers: list[Answer], scores: list[ScoreRecord]
 ) -> list[Exam]:
-    """若未提供考试目录，从答题/成绩中推断。"""
+    """若未提供考试目录，从答题/成绩中推断。 / If no exam list is given, infer it from answers/scores."""
     found: dict[str, Exam] = {}
     for score in scores:
         if score.exam_id not in found:
@@ -239,6 +252,7 @@ def derive_exams_from_records(
 
 
 def clean_dataset(raw: dict, config: Optional[dict] = None) -> dict:
+    """清洗全部表，并只保留学生表中存在的学号。 / Clean all tables and keep only student IDs present in the student table."""
     students = clean_students(raw.get("students") or [])
     exams = clean_exams(raw.get("exams") or [])
     questions = clean_questions(raw.get("questions") or [])

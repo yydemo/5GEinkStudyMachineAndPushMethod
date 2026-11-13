@@ -1,6 +1,8 @@
 """个性化引擎主流程入口。
 
-示例：
+Main pipeline entry point for the personalized engine.
+
+示例 / Example:
 
     python -m src.main --data data/sample --out output
 """
@@ -28,17 +30,19 @@ DEFAULT_CONFIG = ENGINE_ROOT / "config.yaml"
 
 
 def load_config(path: Optional[str | Path] = None) -> dict:
+    """读取 YAML 配置；文件不存在时返回空字典。 / Load the YAML config; return {} if the file is missing."""
     config_path = Path(path) if path else DEFAULT_CONFIG
     if not config_path.exists():
         return {}
     with config_path.open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
     if not isinstance(data, dict):
-        raise ValueError(f"配置文件应为 YAML 映射：{config_path}")
+        raise ValueError(f"配置文件应为 YAML 映射 / Config file must be a YAML mapping: {config_path}")
     return data
 
 
 def _to_plain(value: Any) -> Any:
+    """把 dataclass 递归转为普通字典/列表，便于写 JSON。 / Recursively convert dataclasses to plain dicts/lists for JSON."""
     if is_dataclass(value):
         return {k: _to_plain(v) for k, v in asdict(value).items()}
     if isinstance(value, list):
@@ -54,13 +58,14 @@ def run_pipeline(
     config_path: Optional[str | Path] = None,
     save_processed: bool = False,
 ) -> dict:
+    """读取 → 清洗 → 画像 → 掌握度 → 生成 → 导出。 / Load → clean → profile → mastery → generate → export."""
     config = load_config(config_path)
     raw = load_dataset(data_dir, config)
     cleaned = clean_dataset(raw, config)
     if not cleaned["students"]:
-        raise SystemExit(f"未读取到学生数据，请检查目录：{data_dir}")
+        raise SystemExit(f"未读取到学生数据，请检查目录 / No student data found, check the directory: {data_dir}")
     if not cleaned["answers"]:
-        raise SystemExit(f"未读取到答题记录，请检查目录：{data_dir}")
+        raise SystemExit(f"未读取到答题记录，请检查目录 / No answer records found, check the directory: {data_dir}")
 
     profiles = build_student_profiles(
         cleaned["students"],
@@ -98,29 +103,30 @@ def run_pipeline(
         )
 
     print(
-        f"已为 {result['count']} 名学生生成个性化材料，输出目录：{output_dir.resolve()}"
+        f"已为 {result['count']} 名学生生成个性化材料，输出目录：{output_dir.resolve()}\n"
+        f"Generated personalized materials for {result['count']} students. Output directory: {output_dir.resolve()}"
     )
-    print(f"教师审核摘要：{result['teacher_summary']}")
+    print(f"教师审核摘要 / Teacher review summary: {result['teacher_summary']}")
     return result
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="个性化试卷与资料引擎")
+    parser = argparse.ArgumentParser(description="个性化试卷与资料引擎 / Personalized exam and materials engine")
     parser.add_argument(
         "--data",
         default="data/sample",
-        help="输入数据目录（含 students/scores/answers/question_bank 等，默认 data/sample）",
+        help="输入数据目录（含 students/scores/answers/question_bank 等，默认 data/sample） / Input data directory (students/scores/answers/question_bank etc., default data/sample)",
     )
-    parser.add_argument("--out", default="output", help="输出目录（默认 output）")
+    parser.add_argument("--out", default="output", help="输出目录（默认 output） / Output directory (default output)")
     parser.add_argument(
         "--config",
         default=str(DEFAULT_CONFIG),
-        help="YAML 配置文件路径",
+        help="YAML 配置文件路径 / Path to the YAML config file",
     )
     parser.add_argument(
         "--save-processed",
         action="store_true",
-        help="将清洗后的数据快照写入输出目录的 _processed/",
+        help="将清洗后的数据快照写入输出目录的 _processed/ / Write a snapshot of cleaned data to _processed/ in the output directory",
     )
     return parser
 

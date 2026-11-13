@@ -1,7 +1,9 @@
 # 个性化试卷与资料引擎配置（规则引擎第一版）
+# Personalized exam & materials engine config (rule engine, first version)
 
 privacy:
   # 学生表只保留这些学习相关字段，其余列一律丢弃
+  # Only these learning fields are kept from the student table; all other columns are dropped
   allowed_student_fields:
     - student_id
     - grade
@@ -11,43 +13,48 @@ privacy:
 
 mastery:
   recent_exam_count: 3
-  # 最近一次考试到更早，权重依次降低
+  # 最近一次考试到更早，权重依次降低 / Weights decrease from the most recent exam to older ones
   exam_weights: [0.5, 0.3, 0.2]
   # 错题在掌握度分母中的额外权重，用于更明显地暴露薄弱点
+  # Extra weight of wrong answers in the mastery denominator, to expose weak points more clearly
   wrong_answer_weight: 1.8
 
 weak_points:
-  mastery_weight: 0.5      # 掌握度越低，分越高
-  frequency_weight: 0.3    # 出现次数越高，分越高
-  decline_weight: 0.2      # 近期下降趋势加分
+  mastery_weight: 0.5      # 掌握度越低，分越高 / lower mastery → higher score
+  frequency_weight: 0.3    # 出现次数越高，分越高 / more occurrences → higher score
+  decline_weight: 0.2      # 近期下降趋势加分 / bonus for a recent declining trend
   max_weak_points: 5
 
 layers:
-  basic_max: 0.5           # 掌握度低于此值为「基础」
-  advanced_min: 0.75       # 掌握度达到此值为「拓展」
-  # 介于两者之间为「中等」
+  basic_max: 0.5           # 掌握度低于此值为「基础」 / mastery below this → "basic"
+  advanced_min: 0.75       # 掌握度达到此值为「拓展」 / mastery at or above this → "advanced"
+  # 介于两者之间为「中等」 / in between → "intermediate"
 
 output:
-  max_questions: 12        # 每人练习题上限（适配墨水屏）
-  max_pages: 6             # 预估页数上限
+  max_questions: 12        # 每人练习题上限（适配墨水屏） / max practice questions per student (fits E-Ink)
+  max_pages: 6             # 预估页数上限 / max estimated pages
   chars_per_page: 800
-  review_slot_ratio: 0.5   # 错题重练约占总题量的比例
-  teacher_summary_filename: 教师审核摘要.md
+  review_slot_ratio: 0.5   # 错题重练约占总题量的比例 / share of questions used for mistake re-practice
+  teacher_summary_filename: 教师审核摘要.md   # 教师审核摘要文件名 / teacher review summary file name
 
 generator:
-  # rule：本版本默认规则引擎
-  # llm：预留接口，当前未实现，也不会调用任何外部 API
+  # rule：本版本默认规则引擎 / default rule engine in this version
+  # llm：预留接口，当前未实现，也不会调用任何外部 API / reserved interface, not implemented, never calls external APIs
   backend: rule
 
 # ---------------------------------------------------------------------------
-# AI 自习室运营与单店测算
+# AI 自习室运营与单店测算 / AI study-room operations and single-store estimate
 # finance.scenarios 中的数字全部是测算假设，不是已核实的经营数据。
+# All figures in finance.scenarios are assumptions, not verified operating data.
 # 修改后运行 `eink-studyroom finance` 即可重算，请勿把结果当作承诺收益。
+# Edit and run `eink-studyroom finance` to recompute; never treat the results as promised returns.
 # ---------------------------------------------------------------------------
 studyroom:
   sessions_per_week: 4
-  week_start: "2026-11-02"   # 示例数据对应的统计周（周一）
+  week_start: "2026-11-02"   # 示例数据对应的统计周（周一） / report week of the sample data (Monday)
   seats: 16
+  # 分区名称与场次标签是数据取值（保持中文），输出时自动附英文。
+  # Zone names and session labels are data values (kept in Chinese); English is added on output.
   zones:
     - name: 理科辅导区
       subjects: [物理, 化学, 生物]
@@ -88,6 +95,7 @@ studyroom:
       priority: 5
   finance:
     # 单位：座位数（个），利用率/续费率（0–1），其余为元 / 月（启动成本为一次性投入）
+    # Units: seats (count), utilization/renewal rate (0–1), others in CNY per month (start-up cost is one-off)
     scenarios:
       conservative:
         seats: 40

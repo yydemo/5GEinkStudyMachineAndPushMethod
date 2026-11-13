@@ -5,7 +5,7 @@ __pycache__/
 venv/
 *.pyc
 
-# 真实学生数据不入库（仓库是公开的）
+# 真实学生数据不入库（仓库是公开的） / Real student data is never committed (the repo is public)
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*

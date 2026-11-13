@@ -104,5 +104,6 @@ venv.bak/
 .mypy_cache/
 
 # 个性化引擎运行产出（含生成的学生材料，不入库）
+# Personalized engine run output (includes generated student materials; not committed)
 personalized_engine/output/
 output/

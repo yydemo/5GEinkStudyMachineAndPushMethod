@@ -1,7 +1,13 @@
 """读取学生、考试、答题与题库数据。
 
+Load student, exam, answer and question-bank data.
+
 仅保留学习相关字段。学生表中的姓名、联系方式、身份证等额外列会被丢弃。
 支持 CSV 与 JSON 两种输入（同名文件，优先 CSV）。
+
+Only learning-related fields are kept. Extra columns in the student table such as
+name, contact details or ID-card numbers are dropped. Both CSV and JSON inputs are
+supported (when both exist with the same name, CSV wins).
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ def _as_path(data_dir: str | Path) -> Path:
 
 
 def _load_table(data_dir: Path, name: str) -> list[dict[str, Any]]:
+    """读取一张表（CSV 优先，其次 JSON）；不存在则返回空列表。 / Read one table (CSV first, then JSON); return [] if absent."""
     csv_path = data_dir / f"{name}.csv"
     json_path = data_dir / f"{name}.json"
     if csv_path.exists():
@@ -37,18 +44,20 @@ def _load_table(data_dir: Path, name: str) -> list[dict[str, Any]]:
         if isinstance(data, dict):
             data = data.get("records") or data.get(name) or data.get("data") or []
         if not isinstance(data, list):
-            raise ValueError(f"{json_path} 应为对象列表")
+            raise ValueError(f"{json_path} 应为对象列表 / must be a list of objects")
         return [dict(item) for item in data]
     return []
 
 
 def _s(value: Any, default: str = "") -> str:
+    """转为去空白的字符串。 / Convert to a stripped string."""
     if value is None:
         return default
     return str(value).strip()
 
 
 def _f(value: Any, default: float = 0.0) -> float:
+    """转为浮点数，失败时返回默认值。 / Convert to float, returning the default on failure."""
     text = _s(value)
     if text == "":
         return default
@@ -59,7 +68,7 @@ def _f(value: Any, default: float = 0.0) -> float:
 
 
 def parse_bool(value: Any, default: bool = False) -> bool:
-    """把常见对错标记转为布尔值。"""
+    """把常见对错标记转为布尔值。 / Convert common right/wrong markers to a boolean."""
     if isinstance(value, bool):
         return value
     text = _s(value).lower()
@@ -71,7 +80,10 @@ def parse_bool(value: Any, default: bool = False) -> bool:
 
 
 def split_list(value: Any) -> list[str]:
-    """把逗号/顿号/分号分隔的字符串拆成列表；已是列表则原样规范化。"""
+    """把逗号/顿号/分号分隔的字符串拆成列表；已是列表则原样规范化。
+
+    Split a comma/、/semicolon-separated string into a list; normalize if already a list.
+    """
     if value is None:
         return []
     if isinstance(value, list):
@@ -85,6 +97,7 @@ def split_list(value: Any) -> list[str]:
 
 
 def allowed_student_fields(config: Optional[dict] = None) -> tuple[str, ...]:
+    """返回允许保留的学生字段（可由配置覆盖）。 / Return allowed student fields (overridable by config)."""
     if config:
         extra = (
             config.get("privacy", {}).get("allowed_student_fields")
@@ -98,12 +111,13 @@ def allowed_student_fields(config: Optional[dict] = None) -> tuple[str, ...]:
 def drop_private_student_fields(
     row: dict[str, Any], config: Optional[dict] = None
 ) -> dict[str, Any]:
-    """只保留学习相关字段，丢弃姓名等隐私列。"""
+    """只保留学习相关字段，丢弃姓名等隐私列。 / Keep learning fields only; drop name and other private columns."""
     allowed = set(allowed_student_fields(config))
     return {key: value for key, value in row.items() if key in allowed}
 
 
 def load_students(data_dir: str | Path, config: Optional[dict] = None) -> list[Student]:
+    """读取学生表。 / Load the student table."""
     rows = _load_table(_as_path(data_dir), "students")
     students: list[Student] = []
     for row in rows:
@@ -124,6 +138,7 @@ def load_students(data_dir: str | Path, config: Optional[dict] = None) -> list[S
 
 
 def load_exams(data_dir: str | Path) -> list[Exam]:
+    """读取考试表。 / Load the exam table."""
     rows = _load_table(_as_path(data_dir), "exams")
     exams: list[Exam] = []
     for row in rows:
@@ -143,6 +158,7 @@ def load_exams(data_dir: str | Path) -> list[Exam]:
 
 
 def load_scores(data_dir: str | Path) -> list[ScoreRecord]:
+    """读取成绩表。 / Load the score table."""
     rows = _load_table(_as_path(data_dir), "scores")
     records: list[ScoreRecord] = []
     for row in rows:
@@ -164,6 +180,7 @@ def load_scores(data_dir: str | Path) -> list[ScoreRecord]:
 
 
 def load_answers(data_dir: str | Path) -> list[Answer]:
+    """读取逐题作答表。 / Load the per-question answer table."""
     rows = _load_table(_as_path(data_dir), "answers")
     records: list[Answer] = []
     for row in rows:
@@ -189,6 +206,7 @@ def load_answers(data_dir: str | Path) -> list[Answer]:
 
 
 def load_question_bank(data_dir: str | Path) -> list[Question]:
+    """读取题库。 / Load the question bank."""
     rows = _load_table(_as_path(data_dir), "question_bank")
     questions: list[Question] = []
     for row in rows:
@@ -210,10 +228,13 @@ def load_question_bank(data_dir: str | Path) -> list[Question]:
 
 
 def load_dataset(data_dir: str | Path, config: Optional[dict] = None) -> dict:
-    """一次性读取全部输入表。缺表时返回空列表，不报错。"""
+    """一次性读取全部输入表。缺表时返回空列表，不报错。
+
+    Load all input tables at once. Missing tables yield empty lists without errors.
+    """
     path = _as_path(data_dir)
     if not path.exists():
-        raise FileNotFoundError(f"数据目录不存在：{path}")
+        raise FileNotFoundError(f"数据目录不存在 / Data directory does not exist: {path}")
     return {
         "students": load_students(path, config),
         "exams": load_exams(path),

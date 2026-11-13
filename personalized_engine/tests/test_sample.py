@@ -1,4 +1,4 @@
-"""针对示例数据与核心规则的测试。"""
+"""针对示例数据与核心规则的测试。 / Tests for the sample data and core rules."""
 
 from __future__ import annotations
 
